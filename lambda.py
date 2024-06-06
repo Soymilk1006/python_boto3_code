@@ -26,7 +26,7 @@ table = media.get_or_create_table(table_name)
 # Configuration
 function_name = 'my-lambda-function'
 zip_file_name = 'lambda_function.zip'
-handler_name = 'lambda_function.lambda_handler'  # Change as per your script
+handler_name = 'lambda_function.lambda_handler'  
 role_name = 'LambdaS3CloudWatchDynamodbRole'
 # Name of the IAM role
 policy_document = {
