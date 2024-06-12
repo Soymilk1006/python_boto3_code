@@ -1,5 +1,7 @@
 import boto3
 import logging
+import hvac
+import os
 
 # Configure logging
 logger = logging.getLogger()

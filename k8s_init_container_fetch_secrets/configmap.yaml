@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: init-script
+data:
+  init-script.py: |
+    import os
+    import json
+    import hvac
+    import requests
+    import time
+
+    # Function to retrieve secrets from HashiCorp Vault with retry
+    def get_vault_secret(vault_url, vault_token, secret_path, secret_key, max_retries=3):
+        retry_count = 0
+        while retry_count < max_retries:
+            try:
+                # Initialize a Vault client
+                client = hvac.Client(url=vault_url, token=vault_token)
+
+                if not client.is_authenticated():
+                    raise RuntimeError("Vault authentication failed.")
+
+                # Retrieve the secret
+                response = client.secrets.kv.read_secret_version(path=secret_path)
+                secret_value = response['data']['data'][secret_key]
+                return secret_value
+
+            except Exception as e:
+                print(f"Error retrieving secret from Vault (attempt {retry_count + 1}/{max_retries}): {e}")
+                retry_count += 1
+                time.sleep(5)  # Wait for 5 seconds before retrying
+        
+        print(f"Failed to retrieve secret from Vault after {max_retries} attempts.")
+        return None
+
+    # Main function to run in the init container
+    def main():
+        try:
+            # Vault configuration
+            vault_url = os.getenv('VAULT_URL')
+            vault_token = os.getenv('VAULT_TOKEN')
+            secret_path = 'path/to/your/secret'
+            secret_key = 'your_secret_key'
+
+            # Retrieve secret from Vault with retry
+            secret_value = get_vault_secret(vault_url, vault_token, secret_path, secret_key)
+
+            if secret_value:
+                # Write secret to a file
+                secret_file_path = '/path/to/secret/file'
+                with open(secret_file_path, 'w') as f:
+                    f.write(secret_value)
+
+                # Alternatively, export secret as environment variable
+                os.environ['SECRET_KEY'] = secret_value
+                print("Secret retrieved and stored successfully.")
+            else:
+                raise RuntimeError("Failed to retrieve secret from Vault.")
+
+        except Exception as e:
+            # Log error and exit with non-zero status code to signal failure
+            print(f"Error: {e}")
+            exit(1)
+
+    if __name__ == "__main__":
+        main()

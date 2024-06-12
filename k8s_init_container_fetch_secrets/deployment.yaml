@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: your-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: your-app
+  template:
+    metadata:
+      labels:
+        app: your-app
+    spec:
+      containers:
+        - name: main-container
+          image: your-app-image:latest
+          volumeMounts:
+            - name: secrets-volume
+              mountPath: /mnt/secrets
+              readOnly: true  # Ensure main container can only read secrets
+
+      initContainers:
+        - name: init-secrets
+          image: python:3.9-alpine
+          command: ["python", "-u", "/mnt/init-script.py"]  # Adjust path to match mount
+          env:
+            - name: VAULT_URL
+              value: "https://your-vault-url.com"
+            - name: VAULT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: vault-secret
+                  key: token
+          volumeMounts:
+            - name: init-script-volume
+              mountPath: /mnt/init-script.py
+              subPath: init-script.py  # Specify the file name from ConfigMap
+
+            - name: secrets-volume
+              mountPath: /mnt/secrets
+              readOnly: false  # Init container needs write access to store secrets
+
+      volumes:
+        - name: init-script-volume
+          configMap:
+            name: init-script
+        - name: secrets-volume
+          emptyDir: {}
